@@ -37,8 +37,8 @@ createUser () {
 
 createNginxConfig () {
     site_name=$1
-    cat /etc/nginx/conf.d/template.conf__  > /etc/nginx/conf.d/$site_name.conf__testscript
-    sed -i 's/{HOSTING}/'"$site_name"'/g' /etc/nginx/conf.d/$site_name.conf__testscript
+    cat /etc/nginx/conf.d/template.conf__  > /etc/nginx/conf.d/$site_name.conf
+    sed -i 's/{HOSTING}/'"$site_name"'/g' /etc/nginx/conf.d/$site_name.conf
     if [ $? -ne 0  ];
         then
             echo -e "Something went wrong with template or config file.\n Check /etc/nginx/conf.d folder.\n"
@@ -50,8 +50,8 @@ createNginxConfig () {
 
 createFpmConfig () {
     site_name=$1
-    cat /etc/php-fpm.d/template.conf__  > /etc/php-fpm.d/$site_name.conf__testscript
-    sed -i 's/{HOSTING}/'"$site_name"'/g' /etc/php-fpm.d/$site_name.conf__testscript
+    cat /etc/php-fpm.d/template.conf__  > /etc/php-fpm.d/$site_name.conf
+    sed -i 's/{HOSTING}/'"$site_name"'/g' /etc/php-fpm.d/$site_name.conf
     if [ $? -ne 0  ];
         then
             echo -e "Something went wrong with template or config file.\\n Check /etc/php-fpm.d folder.\n"
