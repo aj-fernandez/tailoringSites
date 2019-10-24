@@ -8,20 +8,20 @@ checkFolder () {
         then
             return
     else
-        echo -e "The folder $1 doesn't exists, does the site you want to configure really exist?.\n"
+        echo -e "\nThe folder $1 doesn't exists, does the site you want to configure really exist?.\n"
         exit
     fi
 }
 
 checkUser () {
     user=$1
-    getent passwd $user
+    getent passwd $user > /dev/null
     if [[ $? -eq 0 ]];
         then
-            echo -e "Site user owner already exist, has the site already been customized?\n"
+            echo -e "\nSite user owner already exist, has the site already been customized?\n"
             exit
     else
-        echo -e "Adding user and group: \"$user\" to system.\n"
+        echo -e "\nAdding user and group: \"$user\" to system.\n"
     fi
 }
 
@@ -30,29 +30,39 @@ createUser () {
    useradd -r -s /sbin/nologin $user
 }
 
+createLogDir () {
+    dir_name=$1
+    mkdir /var/log/nginx/$site_name/ > /dev/null
+    chown $dir_name:$dir_name /var/log/nginx/$site_name/
+    chmod 660 /var/log/nginx/$site_name/
+    mkdir /var/log/php-fpm/$site_name/ > /dev/null
+    chown $dir_name:$dir_name /var/log/php-fpm/$site_name/
+    chmod 660 /var/log/php-fpm/$site_name/
+}
+
 createNginxConfig () {
     site_name=$1
-    cat /etc/nginx/conf.d/template.conf__  > /etc/nginx/conf.d/$site_name.conf__testscript
-    sed -i 's/{HOSTING}/'"$site_name"'/g' /etc/nginx/conf.d/$site_name.conf__testscript
+    cat /etc/nginx/conf.d/template.conf__  > /etc/nginx/conf.d/$site_name.conf
+    sed -i 's/{HOSTING}/'"$site_name"'/g' /etc/nginx/conf.d/$site_name.conf
     if [[ $? -ne 0 ]];
         then
-            echo -e "Something went wrong with template or config file.\n Check /etc/nginx/conf.d folder.\n"
+            echo -e "\nSomething went wrong with template or config file.\n Check /etc/nginx/conf.d folder.\n"
             exit
     else
-        echo -e "Nginx tailored config file created successfully.\n"
+        echo -e "\nNginx tailored config file created successfully.\n"
     fi
 }
 
 createFpmConfig () {
     site_name=$1
-    cat /etc/php-fpm.d/template.conf__  > /etc/php-fpm.d/$site_name.conf__testscript
-    sed -i 's/{HOSTING}/'"$site_name"'/g' /etc/php-fpm.d/$site_name.conf__testscript
+    cat /etc/php-fpm.d/template.conf__  > /etc/php-fpm.d/$site_name.conf
+    sed -i 's/{HOSTING}/'"$site_name"'/g' /etc/php-fpm.d/$site_name.conf
     if [[ $? -ne 0  ]];
         then
-            echo -e "Something went wrong with template or config file.\\n Check /etc/php-fpm.d folder.\n"
+            echo -e "\nSomething went wrong with template or config file.\\n Check /etc/php-fpm.d folder.\n"
             exit
     else
-        echo -e "PHP-FPM tailored config file created successfully.\n"
+        echo -e "\nPHP-FPM tailored config file created successfully.\n"
     fi
 }
 
@@ -63,25 +73,44 @@ nginxSyntaxValidator () {
     result=`nginx -t -c /etc/nginx/nginx.conf 2>&1`
     if [[ $result =~ $regex ]];
         then
-            echo -e "Nginx syntax successfully verified.\n"
+            echo -e "\nNginx syntax successfully verified.\n"
     else
-        echo -e "Some errors have been found:\n${result}"
+        echo -e "\nSome errors have been found in NGINX syntax:\n\n$result\n"
     fi
 }
 
 phpSyntaxValidator () {
     site_name=$1
     regex=successful$
-    regex_err="(?i)(\W|^)(Unable)(\s)(to)(\s)(include)(\W|$)"
-    result=`php-fpm -t`
+    # only for lines that contains number: regex_err="(?i)(\W|^)(Unable)[[:space:]](to)[[:space:]](include)(\W|$)"
+    regex_err=".(?i)(\W|^)ERROR(\W|$)"
+    result=`php-fpm -t 2>&1`
     if [[ $result =~ $regex ]];
         then
-            echo -e "PHP-FPM syntax successfully verified.\n"
+            echo -e "\nPHP-FPM syntax successfully verified.\n"
     else
-        bad_lines=`echo "$result" | grep $regex_err`
-        echo -e "Some errors have been found:\n$bad_lines"
+        echo -e "\nSome errors have been found in PHP-FPM syntax:\n\n$result\n"
     fi
 }
+
+createMysqlUser () {
+    full_user=$1
+    # Mysql user max 16 characters
+    #user=$(echo -e "$full_user" | cut -c 0-15)
+    user=awk '{print substr($full_user,0,15)}'
+    passwd=""
+    wp_db=`cat /$1/html/wp-config.php | grep DB_NAME | cut -d \' -f 4`
+    #Set root passwd manually or ask for it? BK_@3579
+    r_passwd="BK_@3579"
+    #read -s r_passwd
+    echo -e "Set user \"$user\"'s mysql password:\n"
+    read -s passwd
+
+    mysql -uroot -p$r_passwd -e "CREATE USER '${user}'@localhost IDENTIFIED BY '${passwd}';"
+    #mysql -uroot -p$r_passwd -e "GRANT ALL PRIVILEGES ON ${wp_db}.* TO '${user}'@'localhost';"
+    #mysql -uroot -p$r_passwd -e "FLUSH PRIVILEGES;"
+}
+
 
 
 # MAIN ------------------------------------
@@ -92,13 +121,20 @@ phpSyntaxValidator () {
 
 #createUser $site_name
 
+#createLogDir $site_name
+
 #createNginxConfig $site_name
 
 #createFpmConfig $site_name
 
 #nginxSyntaxValidator $site_name
 
-phpSyntaxValidator $site_name
+#phpSyntaxValidator $site_name
 
+createMysqlUser $site_name
+
+
+
+###### 1billion test, then, uncoment next line
 
 # systemctl reload php-fpm;systemctl reload nginx
