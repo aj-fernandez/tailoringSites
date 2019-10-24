@@ -93,47 +93,63 @@ phpSyntaxValidator () {
     fi
 }
 
-createMysqlUser () {
-    full_user=$1
-    # Mysql user max 16 characters
-    #user=$(echo -e "$full_user" | cut -c 0-15)
-    user=awk '{print substr($full_user,0,15)}'
+updateMysqlUser () {
+    new_user=$1
+    old_db_user=`cat ./$1/html/wp-config.php | grep DB_USER | cut -d \' -f 4`
+    wp_db=`cat ./$1/html/wp-config.php | grep DB_NAME | cut -d \' -f 4`
     passwd=""
-    wp_db=`cat /$1/html/wp-config.php | grep DB_NAME | cut -d \' -f 4`
+
+    #Mysql user max 16 characters, if greater than 16 -> crop it
+    if [[ ${#new_user} -gt 16 ]];
+        then
+            new_user=`echo $new_user | cut -c1-15`
+    fi
+
     #Set root passwd manually or ask for it?
     r_passwd=""
     #read -s r_passwd
-    echo -e "Set user \"$user\"'s mysql password:\n"
+    echo -e "Set user \"$new_user\"'s mysql password:\n"
     read -s passwd
 
-    mysql -uroot -p$r_passwd -e "CREATE USER '${user}'@localhost IDENTIFIED BY '${passwd}';"
-    #mysql -uroot -p$r_passwd -e "GRANT ALL PRIVILEGES ON ${wp_db}.* TO '${user}'@'localhost';"
-    #mysql -uroot -p$r_passwd -e "FLUSH PRIVILEGES;"
+    mysql -uroot -p$r_passwd -e "CREATE USER '${new_user}'@localhost IDENTIFIED BY '${passwd}';"
+    mysql -uroot -p$r_passwd -e "GRANT ALL PRIVILEGES ON ${wp_db}.* TO '${new_user}'@'localhost';"
+    mysql -uroot -p$r_passwd -e "FLUSH PRIVILEGES;"
+
+    sed -i "/DB_USER/s/'[^']*'/'${new_user}'/2" ./$1/html/wp-config.php
+    sed -i "/DB_PASSWORD/s/'[^']*'/'${passwd}'/2" ./$1/html/wp-config.php
 }
 
+setFolderPermission () {
+    root_path=$1
+    fpm_user=$1
 
+    chown $fpm_user:$fpm_user -R ./$root_path/
+    find ./$root_path/html -type d -exec chmod 755 {} \;
+    find ./$root_path/html -type f -exec chmod 644 {} \;
+    chmod 600 ./$root_path/html/wp-config.php
+}
 
 # MAIN ------------------------------------
 
-#checkFolder $site_name
+checkFolder $site_name
 
-#checkUser $site_name
+checkUser $site_name
 
-#createUser $site_name
+createUser $site_name
 
-#createLogDir $site_name
+createLogDir $site_name
 
-#createNginxConfig $site_name
+createNginxConfig $site_name
 
-#createFpmConfig $site_name
+createFpmConfig $site_name
 
-#nginxSyntaxValidator $site_name
+nginxSyntaxValidator $site_name
 
-#phpSyntaxValidator $site_name
+phpSyntaxValidator $site_name
 
-createMysqlUser $site_name
+updateMysqlUser $site_name
 
-
+setFolderPermission $site_name
 
 ###### 1billion test, then, uncoment next line
 
