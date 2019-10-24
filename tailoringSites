@@ -100,8 +100,8 @@ createMysqlUser () {
     user=awk '{print substr($full_user,0,15)}'
     passwd=""
     wp_db=`cat /$1/html/wp-config.php | grep DB_NAME | cut -d \' -f 4`
-    #Set root passwd manually or ask for it? BK_@3579
-    r_passwd="BK_@3579"
+    #Set root passwd manually or ask for it?
+    r_passwd=""
     #read -s r_passwd
     echo -e "Set user \"$user\"'s mysql password:\n"
     read -s passwd
